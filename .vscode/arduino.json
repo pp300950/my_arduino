@@ -1,0 +1,6 @@
+{
+    "board": "arduino:avr:uno",
+    "port": "COM6",
+    "configuration": "cpu=atmega328p",
+    "programmer": "arduino"
+}

@@ -1,0 +1,16 @@
+#include <Wire.h>
+#include <LiquidCrystal_I2C.h>
+
+// ใช้ขนาดจอ 16x2 และ address ที่ตรวจเจอคือ 0x27
+LiquidCrystal_I2C lcd(0x27, 16, 2);
+
+void setup() {
+  lcd.init();          // เริ่มต้นจอ
+  lcd.backlight();     // เปิดไฟจอ
+  lcd.setCursor(0, 0);
+  lcd.print("LCD Ready!");
+}
+
+void loop() {
+  // ว่างไว้
+}

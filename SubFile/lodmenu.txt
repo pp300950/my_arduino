@@ -1,0 +1,72 @@
+const int BTN_NEXT = 2;
+const int BTN_SELECT = 3;
+const int BTN_OK = 4;
+
+int menuIndex = 0;
+int daySetting = 0;    // 0=ทุกวัน, 1=จ-ศ, 2=ส-อา
+int hourSetting = 8;
+int minuteSetting = 0;
+
+void setup() {
+  Serial.begin(9600);
+  pinMode(BTN_NEXT, INPUT_PULLUP);
+  pinMode(BTN_SELECT, INPUT_PULLUP);
+  pinMode(BTN_OK, INPUT_PULLUP);
+  showMenu();
+}
+
+void loop() {
+  if (digitalRead(BTN_NEXT) == LOW) {
+    menuIndex = (menuIndex + 1) % 4; // 4 เมนู
+    showMenu();
+    delay(300);
+  }
+
+  if (digitalRead(BTN_SELECT) == LOW) {
+    switch (menuIndex) {
+      case 0: daySetting = (daySetting + 1) % 3; break;
+      case 1: hourSetting = (hourSetting + 1) % 24; break;
+      case 2: minuteSetting = (minuteSetting + 1) % 60; break;
+    }
+    showMenu();
+    delay(300);
+  }
+
+  if (digitalRead(BTN_OK) == LOW) {
+    if (menuIndex == 3) {
+      Serial.println("✅ ตั้งค่าเสร็จแล้ว!");
+      Serial.print("🕒 เตือนเวลา: ");
+      Serial.print(hourSetting);
+      Serial.print(":");
+      Serial.println(minuteSetting < 10 ? "0" + String(minuteSetting) : String(minuteSetting));
+      Serial.print("📆 วัน: ");
+      if (daySetting == 0) Serial.println("ทุกวัน");
+      else if (daySetting == 1) Serial.println("จันทร์ - ศุกร์");
+      else Serial.println("เสาร์ - อาทิตย์");
+    }
+    delay(300);
+  }
+}
+
+void showMenu() {
+  Serial.print("📌 เมนู: ");
+  switch (menuIndex) {
+    case 0:
+      Serial.print("วัน: ");
+      if (daySetting == 0) Serial.println("ทุกวัน");
+      else if (daySetting == 1) Serial.println("จ-ศ");
+      else Serial.println("ส-อา");
+      break;
+    case 1:
+      Serial.print("ตั้งชั่วโมง: ");
+      Serial.println(hourSetting);
+      break;
+    case 2:
+      Serial.print("ตั้งนาที: ");
+      Serial.println(minuteSetting);
+      break;
+    case 3:
+      Serial.println("✅ ยืนยันการตั้งค่า");
+      break;
+  }
+}
