@@ -1,0 +1,28 @@
+#include <SPI.h>
+#include <SD.h>
+
+const int chipSelect = 10;
+
+void setup() {
+  Serial.begin(9600);
+
+  if (!SD.begin(chipSelect)) {
+    Serial.println("ไม่สามารถเริ่มต้น SD Card");
+    return;
+  }
+  Serial.println("เริ่มต้น SD Card สำเร็จ");
+
+  // สร้างไฟล์ใหม่
+  File dataFile = SD.open("test.txt", FILE_WRITE);
+  if (dataFile) {
+    dataFile.println("Hello from Arduino!");
+    dataFile.close();
+    Serial.println("เขียนข้อมูลสำเร็จ");
+  } else {
+    Serial.println("เปิดไฟล์ไม่สำเร็จ");
+  }
+}
+
+void loop() {
+  // ไม่มีอะไรใน loop
+}
