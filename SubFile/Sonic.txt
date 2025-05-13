@@ -1,6 +1,6 @@
 #include <Arduino.h>
-#define trigPin 9
-#define echoPin 10
+#define trigPin 4
+#define echoPin 5
 
 long duration;
 float distance;

@@ -4,7 +4,12 @@
 
 // กำหนด LCD และ RTC
 LiquidCrystal_I2C lcd(0x27, 16, 2);
-RTC_DS3231 rtc;  //ยังไม่มี
+
+RTC_DS3231 rtc;
+const int MAX_DOSES = 6; // ให้พอดีกับ dosePerDay สูงสุด
+bool doseTaken[MAX_DOSES]; // true = กินแล้ว
+DateTime pillTimes[MAX_DOSES]; // อาเรย์เก็บเวลาการกินยา
+
 
 // พินต่างๆ
 const int buttonUpPin = 2;
@@ -24,10 +29,13 @@ unsigned long lastDebounceTime = 0;
 const unsigned long debounceDelay = 200;
 bool boxOpened = false;
 
-void setup() {
+void setup()
+{
   Serial.begin(9600);
   Wire.begin();
-  lcd.begin();
+ lcd.init();      
+  lcd.begin(16, 2);  // สำหรับจอ LCD 16x2
+ lcd.setCursor(0, 0);
   lcd.backlight();
 
   pinMode(buttonUpPin, INPUT_PULLUP);
@@ -36,12 +44,15 @@ void setup() {
   pinMode(echoPin, INPUT);
   pinMode(buzzerPin, OUTPUT);
 
-  if (!rtc.begin()) {
+  if (!rtc.begin())
+  {
     Serial.println("Couldn't find RTC");
-    while (1);
+    while (1)
+      ;
   }
 
-  if (rtc.lostPower()) {
+  if (rtc.lostPower())
+  {
     rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
   }
 
@@ -51,30 +62,68 @@ void setup() {
   lcd.clear();
 }
 
-void loop() {
+void loop()
+{
   handleMenu();
   checkReminder();
 }
 
 // ========== MENU SETTING ==========
-void handleMenu() {
+void setPillTimes()
+{
+  DateTime now = rtc.now();
+  int totalMinutes = 24 * 60;
+  int interval = totalMinutes / dosePerDay;
+
+  for (int i = 0; i < dosePerDay; i++)
+  {
+    int minutesFromMidnight = i * interval;
+    int hour = minutesFromMidnight / 60;
+    int minute = minutesFromMidnight % 60;
+
+    pillTimes[i] = DateTime(now.year(), now.month(), now.day(), hour, minute, 0);
+    doseTaken[i] = false;
+
+    Serial.print("ตั้งเตือนเวลา ");
+    Serial.print(hour);
+    Serial.print(":");
+    Serial.println(minute);
+  }
+}
+
+void handleMenu()
+{
   static bool lastButtonUp = HIGH;
   static bool lastButtonDown = HIGH;
 
   bool buttonUp = digitalRead(buttonUpPin);
   bool buttonDown = digitalRead(buttonDownPin);
 
-  if (buttonUp == LOW && lastButtonUp == HIGH && (millis() - lastDebounceTime) > debounceDelay) {
+  if (buttonUp == LOW && lastButtonUp == HIGH && (millis() - lastDebounceTime) > debounceDelay)
+  {
     menuIndex++;
-    if (menuIndex > 3) menuIndex = 0;
+    if (menuIndex > 3)
+      menuIndex = 0;
     lastDebounceTime = millis();
   }
 
-  if (buttonDown == LOW && lastButtonDown == HIGH && (millis() - lastDebounceTime) > debounceDelay) {
-    switch (menuIndex) {
-      case 0: dosePerDay++; if (dosePerDay > 6) dosePerDay = 1; break;
-      case 1: reminderMode = (reminderMode + 1) % 3; break;
-      case 2: firstPillTime = rtc.now() + TimeSpan(0, 0, 1, 0); break;
+  if (buttonDown == LOW && lastButtonDown == HIGH && (millis() - lastDebounceTime) > debounceDelay)
+  {
+    switch (menuIndex)
+    {
+    case 0:
+      dosePerDay++;
+      if (dosePerDay > 6)
+        dosePerDay = 1;
+      break;
+    case 1:
+      reminderMode = (reminderMode + 1) % 3;
+      break;
+    case 2:
+      firstPillTime = rtc.now() + TimeSpan(0, 0, 1, 0);
+      setPillTimes();    // กระจายเวลาให้ครบ
+      boxOpened = false; // รีเซตสถานะให้แจ้งเตือนอีกครั้ง
+      break;
     }
     lastDebounceTime = millis();
   }
@@ -90,47 +139,66 @@ void handleMenu() {
   Serial.print("Menu Index: ");
   Serial.println(menuIndex);
 
-  switch (menuIndex) {
-    case 0:
-      lcd.print("ยาต่อวัน: ");
-      lcd.print(dosePerDay);
-      Serial.print("Dose/Day: ");
-      Serial.println(dosePerDay);
-      break;
-    case 1:
-      lcd.print("โหมดเตือน: ");
-      if (reminderMode == 0) lcd.print("ครั้งเดียว");
-      else if (reminderMode == 1) lcd.print("จ-ศ");
-      else lcd.print("ส-อา");
-      Serial.print("Reminder Mode: ");
-      Serial.println(reminderMode);
-      break;
-    case 2:
-      lcd.print("เริ่มเตือนใน 1นาที");
-      Serial.println("First pill time set to 1 min later");
-      break;
-    case 3:
-      lcd.print("รอเวลาเตือน...");
-      break;
+  switch (menuIndex)
+  {
+  case 0:
+    lcd.print("ยาต่อวัน: ");
+    lcd.print(dosePerDay);
+    Serial.print("Dose/Day: ");
+    Serial.println(dosePerDay);
+    break;
+  case 1:
+    lcd.print("โหมดเตือน: ");
+    if (reminderMode == 0)
+      lcd.print("ครั้งเดียว");
+    else if (reminderMode == 1)
+      lcd.print("จ-ศ");
+    else
+      lcd.print("ส-อา");
+    Serial.print("Reminder Mode: ");
+    Serial.println(reminderMode);
+    break;
+  case 2:
+    lcd.print("เริ่มเตือนใน 1นาที");
+    Serial.println("First pill time set to 1 min later");
+    break;
+  case 3:
+    lcd.print("รอเวลาเตือน ");
+    lcd.setCursor(0, 1);
+    lcd.print(rtc.now().timestamp(DateTime::TIMESTAMP_TIME));
+    break;
   }
 
   delay(200);
 }
 
 // ========== REMINDER LOGIC ==========
-void checkReminder() {
+void checkReminder()
+{
   DateTime now = rtc.now();
 
-  // เงื่อนไขเตือน
-  if (now >= firstPillTime && shouldAlertToday(now) && !boxOpened) {
-    alertUser();
+  for (int i = 0; i < dosePerDay; i++)
+  {
+    if (!doseTaken[i] && now >= pillTimes[i] && shouldAlertToday(now))
+    {
+      alertUser(i); // ส่ง index ไป
+    }
   }
 
-  // ตรวจสอบว่าผู้ใช้เปิดกล่องหรือยัง
-  if (measureDistance() > 12.0) {
-    boxOpened = true;
+  // ตรวจการเปิดกล่อง
+  if (measureDistance() > 12.0)
+  {
+    for (int i = 0; i < dosePerDay; i++)
+    {
+      if (!doseTaken[i] && rtc.now() >= pillTimes[i])
+      {
+        doseTaken[i] = true; // กินแล้ว
+        Serial.print("ยาครั้งที่ ");
+        Serial.print(i + 1);
+        Serial.println(" ถูกกินแล้ว");
+      }
+    }
     noTone(buzzerPin);
-    Serial.println("กล่องถูกเปิดแล้ว");
     lcd.clear();
     lcd.setCursor(0, 0);
     lcd.print("กินยาแล้ว!");
@@ -140,24 +208,38 @@ void checkReminder() {
 }
 
 // ========== ALERT ==========
-void alertUser() {
+void alertUser(int doseIndex)
+{
   tone(buzzerPin, 1000);
   delay(500);
   noTone(buzzerPin);
   delay(300);
-  Serial.println("เตือนให้กินยา!");
+  Serial.print("เตือนกินยาครั้งที่ ");
+  Serial.println(doseIndex + 1);
+
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("ถึงเวลากินยา");
+  lcd.setCursor(0, 1);
+  lcd.print("รอบที่ ");
+  lcd.print(doseIndex + 1);
 }
 
 // ========== CHECK REMINDER TYPE ==========
-bool shouldAlertToday(DateTime now) {
+bool shouldAlertToday(DateTime now)
+{
   int dow = now.dayOfTheWeek(); // 0: Sunday, 1: Monday, ...
-  if (reminderMode == 0) return true;
-  else if (reminderMode == 1) return dow >= 1 && dow <= 5;
-  else return dow == 0 || dow == 6;
+  if (reminderMode == 0)
+    return true;
+  else if (reminderMode == 1)
+    return dow >= 1 && dow <= 5;
+  else
+    return dow == 0 || dow == 6;
 }
 
 // ========== MEASURE DISTANCE ==========
-float measureDistance() {
+float measureDistance()
+{
   digitalWrite(trigPin, LOW);
   delayMicroseconds(2);
   digitalWrite(trigPin, HIGH);

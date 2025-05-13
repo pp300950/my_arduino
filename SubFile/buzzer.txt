@@ -1,0 +1,14 @@
+#include <Arduino.h>
+const int buzzerPin = 6;
+
+void setup() {
+  pinMode(buzzerPin, OUTPUT);
+}
+
+void loop() {
+  tone(buzzerPin, 1000);  // ส่งเสียงที่ความถี่ 1000 Hz
+  delay(500);             // เปิดเสียง 0.5 วินาที
+
+  noTone(buzzerPin);      // หยุดเสียง
+  delay(500);             // ปิดเสียง 0.5 วินาที
+}
