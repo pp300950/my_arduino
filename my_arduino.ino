@@ -136,26 +136,7 @@ void manualSetPillTimes()
           }
         }
       }
-      // ตรวจจับการกดปุ่มล่างค้างเกิน 2 วินาทีเพื่อรีเซต
-      if (digitalRead(buttonDownPin) == LOW)
-      {
-        unsigned long pressStart = millis();
-
-        while (digitalRead(buttonDownPin) == LOW)
-        {
-          if (millis() - pressStart > 2000)
-          {
-            // แสดงข้อความก่อนรีสตาร์ท
-            lcd.clear();
-            lcd.setCursor(0, 0);
-            lcd.print("System Restarting");
-            delay(1000);
-
-            // รีสตาร์ทระบบ
-            asm volatile("  jmp 0");
-          }
-        }
-      }
+     
 
       isPillTimeSet = true;
       menuIndex = 3; // เด้งไปหน้า Waiting
@@ -279,6 +260,27 @@ void handleMenu()
     lcd.print(nowBuffer);
     break;
   }
+
+   // ตรวจจับการกดปุ่มล่างค้างเกิน 2 วินาทีเพื่อรีเซต
+      if (digitalRead(buttonDownPin) == LOW)
+      {
+        unsigned long pressStart = millis();
+
+        while (digitalRead(buttonDownPin) == LOW)
+        {
+          if (millis() - pressStart > 2000)
+          {
+            // แสดงข้อความก่อนรีสตาร์ท
+            lcd.clear();
+            lcd.setCursor(0, 0);
+            lcd.print("System Restarting");
+            delay(1000);
+
+            // รีสตาร์ทระบบ
+            asm volatile("  jmp 0");
+          }
+        }
+      }
 
   delay(200); // ป้องกันการกระพริบจอเร็วเกินไป
 }
