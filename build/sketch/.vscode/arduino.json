@@ -1,0 +1,7 @@
+#line 1 "C:\\Users\\Administrator\\Desktop\\my_arduino\\.vscode\\arduino.json"
+{
+    "board": "arduino:avr:uno",
+    "port": "COM6",
+    "configuration": "cpu=atmega328p",
+    "programmer": "arduino"
+}

@@ -1,0 +1,15 @@
+#include <Servo.h>
+
+Servo myServo;
+
+void setup() {
+  myServo.attach(9);  // ต่อสายสัญญาณที่ขา D9
+}
+
+void loop() {
+  myServo.write(0);     // หมุนไปองศา 0
+delay(1000);
+myServo.write(90);    // หมุนไปองศา 90
+delay(1000);
+
+}

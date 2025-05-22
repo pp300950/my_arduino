@@ -1,0 +1,27 @@
+[
+  {
+    "Sourcefile": null,
+    "Include": "",
+    "Includepath": "C:\\Users\\Administrator\\AppData\\Local\\Arduino15\\packages\\esp8266\\hardware\\esp8266\\3.1.2\\cores\\esp8266"
+  },
+  {
+    "Sourcefile": null,
+    "Include": "",
+    "Includepath": "C:\\Users\\Administrator\\AppData\\Local\\Arduino15\\packages\\esp8266\\hardware\\esp8266\\3.1.2\\variants\\d1_mini"
+  },
+  {
+    "Sourcefile": "C:\\Users\\Administrator\\Desktop\\my_arduino\\build\\sketch\\my_arduino.ino.cpp",
+    "Include": "Wire.h",
+    "Includepath": "C:\\Users\\Administrator\\AppData\\Local\\Arduino15\\packages\\esp8266\\hardware\\esp8266\\3.1.2\\libraries\\Wire"
+  },
+  {
+    "Sourcefile": "C:\\Users\\Administrator\\Desktop\\my_arduino\\build\\sketch\\my_arduino.ino.cpp",
+    "Include": "",
+    "Includepath": null
+  },
+  {
+    "Sourcefile": "C:\\Users\\Administrator\\AppData\\Local\\Arduino15\\packages\\esp8266\\hardware\\esp8266\\3.1.2\\libraries\\Wire\\Wire.cpp",
+    "Include": "",
+    "Includepath": null
+  }
+]

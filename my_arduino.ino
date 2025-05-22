@@ -59,6 +59,17 @@ void setup()
 
   lcd.setCursor(0, 0);
   lcd.print("Smart Pill Box");
+  // เสียง “ตี๊ด ตี๊ด ติด ตี๊ด”
+  tone(buzzerPin, 1000, 100); // ตี๊ด
+  delay(150);
+  tone(buzzerPin, 1000, 100); // ตี๊ด
+  delay(150);
+  tone(buzzerPin, 2000, 50); // ติด
+  delay(100);
+  tone(buzzerPin, 1000, 150); // ตี๊ด
+  delay(150);
+  noTone(buzzerPin);
+
   delay(2000);
   lcd.clear();
 }
@@ -115,7 +126,7 @@ void manualSetPillTimes()
         else if (buttonDown)
         {
           tone(buzzerPin, 500, 100);
-          minute = (minute + 10) % 60;
+          minute = (minute + 5) % 60;
           lastChange = millis();
         }
       }
@@ -136,7 +147,6 @@ void manualSetPillTimes()
           }
         }
       }
-     
 
       isPillTimeSet = true;
       menuIndex = 3; // เด้งไปหน้า Waiting
@@ -261,26 +271,26 @@ void handleMenu()
     break;
   }
 
-   // ตรวจจับการกดปุ่มล่างค้างเกิน 2 วินาทีเพื่อรีเซต
-      if (digitalRead(buttonDownPin) == LOW)
+  // ตรวจจับการกดปุ่มล่างค้างเกิน 2 วินาทีเพื่อรีเซต
+  if (digitalRead(buttonDownPin) == LOW)
+  {
+    unsigned long pressStart = millis();
+
+    while (digitalRead(buttonDownPin) == LOW)
+    {
+      if (millis() - pressStart > 2000)
       {
-        unsigned long pressStart = millis();
+        // แสดงข้อความก่อนรีสตาร์ท
+        lcd.clear();
+        lcd.setCursor(0, 0);
+        lcd.print("System Restarting");
+        delay(1000);
 
-        while (digitalRead(buttonDownPin) == LOW)
-        {
-          if (millis() - pressStart > 2000)
-          {
-            // แสดงข้อความก่อนรีสตาร์ท
-            lcd.clear();
-            lcd.setCursor(0, 0);
-            lcd.print("System Restarting");
-            delay(1000);
-
-            // รีสตาร์ทระบบ
-            asm volatile("  jmp 0");
-          }
-        }
+        // รีสตาร์ทระบบ
+        asm volatile("  jmp 0");
       }
+    }
+  }
 
   delay(200); // ป้องกันการกระพริบจอเร็วเกินไป
 }
@@ -330,33 +340,58 @@ void checkReminder()
 // ========== ALERT ==========
 void alertUser(int doseIndex)
 {
-  alertedDose[doseIndex] = true;
+  static unsigned long lastBeepTime = 0;
+  static int beepCount[MAX_DOSES] = {0}; // นับจำนวนครั้งที่แจ้งเตือน
+  static bool isAlerting[MAX_DOSES] = {false}; // กำลังอยู่ในช่วงแจ้งเตือนหรือไม่
 
-  while (true)
+  if (!isAlerting[doseIndex])
   {
-    if (doseTaken[doseIndex])
-    {
-      break; // ถ้าได้รับยาแล้วหยุดแจ้งเตือน
-    }
+    isAlerting[doseIndex] = true;
+    beepCount[doseIndex] = 0;
+    alertedDose[doseIndex] = true;
+    lastBeepTime = millis();
+  }
 
-    // หากกล่องเปิดแล้วหยุดแจ้งเตือน
-    if (measureDistance() > 15.0)
+  // ถ้ายังไม่เปิดกล่องและยังแจ้งเตือนไม่ครบ 5 ครั้ง
+  if (!doseTaken[doseIndex] && beepCount[doseIndex] < 20)
+  {
+    if (millis() - lastBeepTime >= 1000) // ทุก 1 วินาที
     {
-      break;
+      tone(buzzerPin, 1000, 500);
+      beepCount[doseIndex]++;
+      lastBeepTime = millis();
     }
+  }
 
-    tone(buzzerPin, 1000); // สัญญาณเสียงเตือน
+  // ตรวจจับการเปิดกล่อง
+  if (measureDistance() > 15.0 && !doseTaken[doseIndex])
+  {
+    doseTaken[doseIndex] = true;
+    Serial.print("Dose ");
+    Serial.print(doseIndex + 1);
+    Serial.println(" taken by box opening");
+
+    // เสียงเตือนเมื่อเปิดกล่อง
+    tone(buzzerPin, 2000, 200);
+    delay(250);
+    tone(buzzerPin, 1500, 200);
+    delay(250);
+    noTone(buzzerPin);
+
     lcd.clear();
     lcd.setCursor(0, 0);
-    lcd.print("Time for Meds!");
-    lcd.setCursor(0, 1);
-    lcd.print("Dose ");
-    lcd.print(doseIndex + 1);
-    delay(500);
+    lcd.print("Pill Taken!");
+    delay(2000);
+    lcd.clear();
+  }
+
+  // หยุดแจ้งเตือนถ้าครบ 5 ครั้งแล้ว
+  if (beepCount[doseIndex] >= 5)
+  {
     noTone(buzzerPin);
-    delay(500);
   }
 }
+
 // ========== CHECK REMINDER TYPE ==========
 bool shouldAlertToday(DateTime now)
 {
