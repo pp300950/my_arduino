@@ -1,6 +1,7 @@
 #include <Wire.h>
 #include <LiquidCrystal_I2C.h>
 #include <RTClib.h>
+#include <Servo.h>
 
 // LCD and RTC setup
 LiquidCrystal_I2C lcd(0x27, 16, 2);
@@ -12,12 +13,17 @@ DateTime pillTimes[MAX_DOSES];
 bool isPillTimeSet = false; // เพิ่มตัวแปรตรวจสอบว่าได้ตั้งเวลาเตือนแล้วหรือยัง
 bool alertedDose[MAX_DOSES] = {false};
 
+// servo
+Servo myServo;
+
 // Pins
 const int buttonUpPin = 2;
 const int buttonDownPin = 3;
 const int trigPin = 4;
 const int echoPin = 5;
 const int buzzerPin = 6;
+const int relayPin = 8; // relay มอเตอร์สั่น
+const int LEDPin = 10; 
 
 // Menu settings
 int menuIndex = 0;
@@ -29,9 +35,17 @@ DateTime firstPillTime;
 unsigned long lastDebounceTime = 0;
 const unsigned long debounceDelay = 200;
 bool boxOpened = false;
+// สำหรับตรวจสอบการทำงานของเซอร์โว
+unsigned long boxCloseTime = 0;
 
 void setup()
 {
+  digitalWrite(relayPin, HIGH); // ปิดรีเลย์
+  myServo.attach(9);
+  myServo.write(180); // 0-100:เปิด | 180:ล็อก
+  delay(1000);
+  myServo.detach(); // ปลดการเชื่อมต่อ
+
   Serial.begin(9600);
   Wire.begin();
   lcd.init();
@@ -57,17 +71,20 @@ void setup()
     rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
   }
 
+  pinMode(relayPin, OUTPUT);
+
   lcd.setCursor(0, 0);
   lcd.print("Smart Pill Box");
-  // เสียง “ตี๊ด ตี๊ด ติด ตี๊ด”
-  tone(buzzerPin, 1000, 100); // ตี๊ด
+
+  tone(buzzerPin, 1000, 100);
   delay(150);
-  tone(buzzerPin, 1000, 100); // ตี๊ด
+  tone(buzzerPin, 1000, 100);
   delay(150);
-  tone(buzzerPin, 2000, 50); // ติด
+  tone(buzzerPin, 2000, 50);
   delay(100);
-  tone(buzzerPin, 1000, 150); // ตี๊ด
+  tone(buzzerPin, 1000, 150);
   delay(150);
+
   noTone(buzzerPin);
 
   delay(2000);
@@ -299,40 +316,32 @@ void handleMenu()
 void checkReminder()
 {
   if (!isPillTimeSet)
-    return; // ป้องกันการทำงานก่อนตั้งเวลา
+    return;
 
   DateTime now = rtc.now();
+  float distance = measureDistance();
 
   for (int i = 0; i < dosePerDay; i++)
   {
-    // ตรวจสอบว่าเวลายังไม่ถึงหรือได้รับยาแล้ว
     if (!doseTaken[i] && now >= pillTimes[i] && shouldAlertToday(now))
     {
-      // แจ้งเตือนผู้ใช้
       alertUser(i);
+      alertedDose[i] = true;
     }
-  }
 
-  // ตรวจสอบระยะห่างจากเซ็นเซอร์วัดระยะ
-  if (measureDistance() > 12.0)
-  {
-    for (int i = 0; i < dosePerDay; i++)
+    if (distance > 13.0 && alertedDose[i] && !doseTaken[i])
     {
-      if (alertedDose[i] && !doseTaken[i])
-      {
-        doseTaken[i] = true;
-        Serial.print("Dose ");
-        Serial.print(i + 1);
-        Serial.println(" taken");
-
-        // หยุดเสียงและแสดงข้อความ
-        noTone(buzzerPin);
-        lcd.clear();
-        lcd.setCursor(0, 0);
-        lcd.print("Pill Taken!");
-        delay(2000);
-        lcd.clear();
-      }
+      doseTaken[i] = true;
+      boxOpened = true;
+      Serial.print("Dose ");
+      Serial.print(i + 1);
+      Serial.println(" taken");
+      noTone(buzzerPin);
+      lcd.clear();
+      lcd.setCursor(0, 0);
+      lcd.print("Pill Taken!");
+      delay(2000);
+      lcd.clear();
     }
   }
 }
@@ -340,9 +349,13 @@ void checkReminder()
 // ========== ALERT ==========
 void alertUser(int doseIndex)
 {
+
   static unsigned long lastBeepTime = 0;
-  static int beepCount[MAX_DOSES] = {0}; // นับจำนวนครั้งที่แจ้งเตือน
-  static bool isAlerting[MAX_DOSES] = {false}; // กำลังอยู่ในช่วงแจ้งเตือนหรือไม่
+  static int beepCount[MAX_DOSES] = {0};       // นับจำนวนครั้งที่แจ้งเตือน
+  static bool isAlerting[MAX_DOSES] = {false}; // กำลังอยู่ในช่วงแจ้งเตือนไหม
+  myServo.attach(9);
+  myServo.write(100); // ปลดล็อค
+  delay(100);
 
   if (!isAlerting[doseIndex])
   {
@@ -360,6 +373,11 @@ void alertUser(int doseIndex)
       tone(buzzerPin, 1000, 500);
       beepCount[doseIndex]++;
       lastBeepTime = millis();
+      digitalWrite(relayPin, LOW); // เปิดรีเลย์
+      digitalWrite(LEDPin, HIGH); // เปิดไฟ
+      delay(250);
+      digitalWrite(LEDPin, LOW); // ปิดไฟ
+      digitalWrite(relayPin, HIGH); // ปิดรีเลย์
     }
   }
 
@@ -367,9 +385,14 @@ void alertUser(int doseIndex)
   if (measureDistance() > 15.0 && !doseTaken[doseIndex])
   {
     doseTaken[doseIndex] = true;
-    Serial.print("Dose ");
-    Serial.print(doseIndex + 1);
-    Serial.println(" taken by box opening");
+    // Serial.print("Dose ");
+    // Serial.print(doseIndex + 1);
+    // Serial.println(" taken by box opening");
+    delay(3000);
+    myServo.attach(9);
+    myServo.write(180); // ล้อคกล่อง
+    delay(1000);
+    myServo.detach();
 
     // เสียงเตือนเมื่อเปิดกล่อง
     tone(buzzerPin, 2000, 200);
@@ -377,11 +400,14 @@ void alertUser(int doseIndex)
     tone(buzzerPin, 1500, 200);
     delay(250);
     noTone(buzzerPin);
+    digitalWrite(LEDPin, HIGH); // เปิดไฟ
 
     lcd.clear();
     lcd.setCursor(0, 0);
     lcd.print("Pill Taken!");
     delay(2000);
+    digitalWrite(LEDPin, LOW); // เปิดไฟ
+
     lcd.clear();
   }
 

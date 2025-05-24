@@ -1,0 +1,14 @@
+const int LEDPin = 10;
+// สร้างการสั่น
+void setup() {
+  pinMode(LEDPin, OUTPUT);
+ 
+}
+
+void loop() {
+  delay(1000); 
+  
+  digitalWrite(LEDPin, LOW);
+  delay(500);    
+  digitalWrite(LEDPin, HIGH);
+}

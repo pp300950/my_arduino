@@ -1,0 +1,16 @@
+const int relayPin = 8;
+// สร้างการสั่น
+void setup() {
+  pinMode(relayPin, OUTPUT);
+  // ถ้ารีเลย์โมดูลเป็นแบบ Active LOW ให้ uncomment บรรทัดนี้
+  // digitalWrite(relayPin, HIGH);  //เริ่มต้นปิดรีเลย์ (HIGH = ไม่ทำงาน เมื่อเป็น Active LOW)
+}
+
+void loop() {
+  delay(1000); 
+  // ถ้ารีเลย์โมดูลเป็น Active HIGH (HIGH = ทำงาน)
+  digitalWrite(relayPin, LOW);// เปิดรีเลย์
+  delay(500);    
+  digitalWrite(relayPin, HIGH);// ปิดรีเลย์
+  delay(5000); 
+}
