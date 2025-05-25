@@ -97,22 +97,7 @@ void loop()
   {
     checkReminder();
   }
-  /*float distance = measureDistance();
-
-  Serial.print("ระยะทาง: ");
-  Serial.print(distance, 2); // แสดงทศนิยม 2 ตำแหน่ง
-  Serial.println(" ซม.");
-
-  if (distance > 15.0)
-  {
-    Serial.println("สถานะ: กล่องเปิด");
-  }
-  else
-  {
-    Serial.println("สถานะ: กล่องปิด");
-  }
-
-  delay(1000); // วัดทุก 1 วินาที*/
+  
 }
 
 // ========== MENU SETTING ==========
@@ -332,20 +317,8 @@ void checkReminder()
 
   for (int i = 0; i < dosePerDay; i++)
   {
-    /*Serial.print("Checking dose ");
-    Serial.println(i);
-    Serial.print("  doseTaken: ");
-    Serial.println(doseTaken[i]);
-    Serial.print("  now: ");
-    Serial.println(now.timestamp());
-    Serial.print("  pillTimes[i]: ");
-    Serial.println(pillTimes[i].timestamp());
-    Serial.print("  shouldAlertToday: ");
-    Serial.println(shouldAlertToday(now));*/
-
     if (!doseTaken[i] && !finishedAlert[i] && now >= pillTimes[i] && shouldAlertToday(now))
     {
-      // Serial.println("Do alertUser(i);");
       alertUser(i);
     }
   }
@@ -356,13 +329,6 @@ void alertUser(int doseIndex)
   static int beepCount[MAX_DOSES] = {0};
   static bool isAlerting[MAX_DOSES] = {false};
   float distance = measureDistance();
-
-  // Serial.print("Distance: ");
-  // Serial.println(distance);
-  if (distance > 20.0)
-  {
-    // Serial.println("WARNING: ระบบเชื่อว่ามีการเปิดกล่อง!");
-  }
 
   if (!isAlerting[doseIndex])
   {
@@ -383,9 +349,6 @@ void alertUser(int doseIndex)
   {
     if (millis() - lastBeepTime[doseIndex] >= 1000 && beepCount[doseIndex] < 10)
     {
-      // Serial.print("Beeping... Count: ");
-      // Serial.println(beepCount[doseIndex]);
-
       tone(buzzerPin, 1000, 500);
       digitalWrite(relayPin, LOW);
       delay(100);
@@ -409,7 +372,6 @@ void alertUser(int doseIndex)
   if (distance > 20.0 && alertedDose[doseIndex] && !doseTaken[doseIndex])
   {
     // Serial.println("Stage 3: Pill taken");
-
     doseTaken[doseIndex] = true;
     boxOpened = true;
 
@@ -418,23 +380,23 @@ void alertUser(int doseIndex)
     lcd.print("Pill Taken!");
 
     digitalWrite(LEDPin, HIGH);
-    delay(1000);
+    tone(buzzerPin, 1000, 100);
+    delay(250);
+    tone(buzzerPin, 1000, 100);
+    delay(100);
+    tone(buzzerPin, 1500, 150);
+    delay(150);
+    noTone(buzzerPin);
+    delay(450);
     digitalWrite(LEDPin, LOW);
 
     // Serial.println("Locking box...");
+    delay(6000);
     myServo.write(180); // ล็อกกล่อง
-    delay(1000);
+    delay(500);
     myServo.detach();
-    // Serial.println("Box locked and servo detached");
-
-    tone(buzzerPin, 2000, 200);
-    delay(250);
-    tone(buzzerPin, 1500, 200);
-    delay(250);
-    noTone(buzzerPin);
-
+  
     lcd.clear();
-    // Serial.println("Alert complete\n");
   }
 }
 
@@ -476,10 +438,8 @@ float measureDistance()
     {
       total += 10; // ค่า fallback
     }
-
     delay(50); // รอให้เซนเซอร์นิ่ง
   }
-
   return total / 5.0;
 }
 

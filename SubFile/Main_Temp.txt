@@ -40,7 +40,7 @@ unsigned long boxCloseTime = 0;
 
 void setup()
 {
-  Serial.begin(9600);
+  // Serial.begin(9600);
 
   digitalWrite(relayPin, HIGH); // ปิดรีเลย์
   myServo.attach(9);
@@ -61,7 +61,7 @@ void setup()
 
   if (!rtc.begin())
   {
-    Serial.println("Couldn't find RTC");
+    // Serial.println("Couldn't find RTC");
     while (1)
       ;
   }
@@ -84,7 +84,6 @@ void setup()
   delay(100);
   tone(buzzerPin, 1000, 150);
   delay(150);
-
   noTone(buzzerPin);
 
   delay(2000);
@@ -98,6 +97,7 @@ void loop()
   {
     checkReminder();
   }
+  
 }
 
 // ========== MENU SETTING ==========
@@ -164,24 +164,14 @@ void manualSetPillTimes()
           }
         }
       }
-
       // isPillTimeSet = true;    ********  ลองย้ายลงไปข้างล่าง   **********
-
       menuIndex = 3; // เด้งไปหน้า Waiting
       delay(200);
     }
 
     isPillTimeSet = true; // *********  อยุ่นี่จ้ราาา  **********
-
     pillTimes[i] = DateTime(now.year(), now.month(), now.day(), hour, minute, 0);
     doseTaken[i] = false;
-
-    /*Serial.print("Dose ");
-    Serial.print(i + 1);
-    Serial.print(" set to ");
-    Serial.print(hour);
-    Serial.print(":");
-    Serial.println(minute);*/
   }
 
   // ยังไม่เปิดใช้งาน reminder จนกว่าจะยืนยันในเมนู
@@ -327,20 +317,8 @@ void checkReminder()
 
   for (int i = 0; i < dosePerDay; i++)
   {
-    Serial.print("Checking dose ");
-    Serial.println(i);
-    Serial.print("  doseTaken: ");
-    Serial.println(doseTaken[i]);
-    Serial.print("  now: ");
-    Serial.println(now.timestamp());
-    Serial.print("  pillTimes[i]: ");
-    Serial.println(pillTimes[i].timestamp());
-    Serial.print("  shouldAlertToday: ");
-    Serial.println(shouldAlertToday(now));
-
     if (!doseTaken[i] && !finishedAlert[i] && now >= pillTimes[i] && shouldAlertToday(now))
     {
-      Serial.println("Do alertUser(i);");
       alertUser(i);
     }
   }
@@ -352,35 +330,25 @@ void alertUser(int doseIndex)
   static bool isAlerting[MAX_DOSES] = {false};
   float distance = measureDistance();
 
-  Serial.print("Distance: ");
-  Serial.println(distance);
-  if (distance > 20.0)
-  {
-    Serial.println("WARNING: ระบบเชื่อว่ามีการเปิดกล่อง!");
-  }
-
   if (!isAlerting[doseIndex])
   {
-    Serial.println("Stage 1: Start Alert");
+    // Serial.println("Stage 1: Start Alert");
     isAlerting[doseIndex] = true;
     beepCount[doseIndex] = 0;
     alertedDose[doseIndex] = true;
     lastBeepTime[doseIndex] = millis();
 
-    Serial.println("Attaching servo...");
+    // Serial.println("Attaching servo...");
     myServo.attach(9);
     myServo.write(100); // ปลดล็อค
     delay(200);
-    Serial.println("Servo unlocked");
+    // Serial.println("Servo unlocked");
   }
 
   if (isAlerting[doseIndex] && !doseTaken[doseIndex] && !finishedAlert[doseIndex])
   {
     if (millis() - lastBeepTime[doseIndex] >= 1000 && beepCount[doseIndex] < 10)
     {
-      Serial.print("Beeping... Count: ");
-      Serial.println(beepCount[doseIndex]);
-
       tone(buzzerPin, 1000, 500);
       digitalWrite(relayPin, LOW);
       delay(100);
@@ -395,7 +363,7 @@ void alertUser(int doseIndex)
 
     if (beepCount[doseIndex] >= 10)
     {
-      Serial.println("Finished alerting");
+      // Serial.println("Finished alerting");
       finishedAlert[doseIndex] = true;
       noTone(buzzerPin);
     }
@@ -403,8 +371,7 @@ void alertUser(int doseIndex)
 
   if (distance > 20.0 && alertedDose[doseIndex] && !doseTaken[doseIndex])
   {
-    Serial.println("Stage 3: Pill taken");
-
+    // Serial.println("Stage 3: Pill taken");
     doseTaken[doseIndex] = true;
     boxOpened = true;
 
@@ -413,23 +380,23 @@ void alertUser(int doseIndex)
     lcd.print("Pill Taken!");
 
     digitalWrite(LEDPin, HIGH);
-    delay(1000);
+    tone(buzzerPin, 1000, 100);
+    delay(250);
+    tone(buzzerPin, 1000, 100);
+    delay(100);
+    tone(buzzerPin, 1500, 150);
+    delay(150);
+    noTone(buzzerPin);
+    delay(450);
     digitalWrite(LEDPin, LOW);
 
-    Serial.println("Locking box...");
+    // Serial.println("Locking box...");
+    delay(6000);
     myServo.write(180); // ล็อกกล่อง
-    delay(1000);
+    delay(500);
     myServo.detach();
-    Serial.println("Box locked and servo detached");
-
-    tone(buzzerPin, 2000, 200);
-    delay(250);
-    tone(buzzerPin, 1500, 200);
-    delay(250);
-    noTone(buzzerPin);
-
+  
     lcd.clear();
-    Serial.println("Alert complete\n");
   }
 }
 
@@ -469,18 +436,18 @@ float measureDistance()
     }
     else
     {
-      total += 50; // ค่า fallback
+      total += 10; // ค่า fallback
     }
-
     delay(50); // รอให้เซนเซอร์นิ่ง
   }
-
   return total / 5.0;
 }
 
+/*
 int freeRam()
 {
   extern int __heap_start, *__brkval;
   int v;
   return (int)&v - (__brkval == 0 ? (int)&__heap_start : (int)__brkval);
 }
+*/
