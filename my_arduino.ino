@@ -23,7 +23,7 @@ const int trigPin = 4;
 const int echoPin = 5;
 const int buzzerPin = 6;
 const int relayPin = 8; // relay มอเตอร์สั่น
-const int LEDPin = 10; 
+const int LEDPin = 10;
 
 // Menu settings
 int menuIndex = 0;
@@ -40,13 +40,13 @@ unsigned long boxCloseTime = 0;
 
 void setup()
 {
+  // Serial.begin(9600);
+
   digitalWrite(relayPin, HIGH); // ปิดรีเลย์
   myServo.attach(9);
   myServo.write(180); // 0-100:เปิด | 180:ล็อก
-  delay(1000);
-  myServo.detach(); // ปลดการเชื่อมต่อ
+  delay(100);
 
-  Serial.begin(9600);
   Wire.begin();
   lcd.init();
   // lcd.begin(16, 2);
@@ -61,7 +61,7 @@ void setup()
 
   if (!rtc.begin())
   {
-    Serial.println("Couldn't find RTC");
+    // Serial.println("Couldn't find RTC");
     while (1)
       ;
   }
@@ -84,7 +84,6 @@ void setup()
   delay(100);
   tone(buzzerPin, 1000, 150);
   delay(150);
-
   noTone(buzzerPin);
 
   delay(2000);
@@ -98,6 +97,22 @@ void loop()
   {
     checkReminder();
   }
+  /*float distance = measureDistance();
+
+  Serial.print("ระยะทาง: ");
+  Serial.print(distance, 2); // แสดงทศนิยม 2 ตำแหน่ง
+  Serial.println(" ซม.");
+
+  if (distance > 15.0)
+  {
+    Serial.println("สถานะ: กล่องเปิด");
+  }
+  else
+  {
+    Serial.println("สถานะ: กล่องปิด");
+  }
+
+  delay(1000); // วัดทุก 1 วินาที*/
 }
 
 // ========== MENU SETTING ==========
@@ -164,27 +179,20 @@ void manualSetPillTimes()
           }
         }
       }
-
-      isPillTimeSet = true;
+      // isPillTimeSet = true;    ********  ลองย้ายลงไปข้างล่าง   **********
       menuIndex = 3; // เด้งไปหน้า Waiting
-
       delay(200);
     }
 
+    isPillTimeSet = true; // *********  อยุ่นี่จ้ราาา  **********
     pillTimes[i] = DateTime(now.year(), now.month(), now.day(), hour, minute, 0);
     doseTaken[i] = false;
-
-    Serial.print("Dose ");
-    Serial.print(i + 1);
-    Serial.print(" set to ");
-    Serial.print(hour);
-    Serial.print(":");
-    Serial.println(minute);
   }
 
   // ยังไม่เปิดใช้งาน reminder จนกว่าจะยืนยันในเมนู
   isPillTimeSet = false;
 }
+
 void handleMenu()
 {
   static bool lastButtonUp = HIGH;
@@ -248,7 +256,7 @@ void handleMenu()
   case 2:
     lcd.print("Start Reminder");
     lcd.setCursor(0, 1);
-    lcd.print("Starts in 1 min");
+    lcd.print("Starts in ? min");
     break;
   case 3:
     DateTime now = rtc.now();
@@ -311,6 +319,8 @@ void handleMenu()
 
   delay(200); // ป้องกันการกระพริบจอเร็วเกินไป
 }
+// อยู่นอกฟังก์ชันทั้งหมด
+bool finishedAlert[MAX_DOSES] = {false}; // เดิมอยู่เป็น static ใน alertUser()
 
 // ========== REMINDER LOGIC ==========
 void checkReminder()
@@ -319,102 +329,112 @@ void checkReminder()
     return;
 
   DateTime now = rtc.now();
-  float distance = measureDistance();
 
   for (int i = 0; i < dosePerDay; i++)
   {
-    if (!doseTaken[i] && now >= pillTimes[i] && shouldAlertToday(now))
-    {
-      alertUser(i);
-      alertedDose[i] = true;
-    }
+    /*Serial.print("Checking dose ");
+    Serial.println(i);
+    Serial.print("  doseTaken: ");
+    Serial.println(doseTaken[i]);
+    Serial.print("  now: ");
+    Serial.println(now.timestamp());
+    Serial.print("  pillTimes[i]: ");
+    Serial.println(pillTimes[i].timestamp());
+    Serial.print("  shouldAlertToday: ");
+    Serial.println(shouldAlertToday(now));*/
 
-    if (distance > 13.0 && alertedDose[i] && !doseTaken[i])
+    if (!doseTaken[i] && !finishedAlert[i] && now >= pillTimes[i] && shouldAlertToday(now))
     {
-      doseTaken[i] = true;
-      boxOpened = true;
-      Serial.print("Dose ");
-      Serial.print(i + 1);
-      Serial.println(" taken");
-      noTone(buzzerPin);
-      lcd.clear();
-      lcd.setCursor(0, 0);
-      lcd.print("Pill Taken!");
-      delay(2000);
-      lcd.clear();
+      // Serial.println("Do alertUser(i);");
+      alertUser(i);
     }
   }
 }
-
-// ========== ALERT ==========
 void alertUser(int doseIndex)
 {
+  static unsigned long lastBeepTime[MAX_DOSES] = {0};
+  static int beepCount[MAX_DOSES] = {0};
+  static bool isAlerting[MAX_DOSES] = {false};
+  float distance = measureDistance();
 
-  static unsigned long lastBeepTime = 0;
-  static int beepCount[MAX_DOSES] = {0};       // นับจำนวนครั้งที่แจ้งเตือน
-  static bool isAlerting[MAX_DOSES] = {false}; // กำลังอยู่ในช่วงแจ้งเตือนไหม
-  myServo.attach(9);
-  myServo.write(100); // ปลดล็อค
-  delay(100);
+  // Serial.print("Distance: ");
+  // Serial.println(distance);
+  if (distance > 20.0)
+  {
+    // Serial.println("WARNING: ระบบเชื่อว่ามีการเปิดกล่อง!");
+  }
 
   if (!isAlerting[doseIndex])
   {
+    // Serial.println("Stage 1: Start Alert");
     isAlerting[doseIndex] = true;
     beepCount[doseIndex] = 0;
     alertedDose[doseIndex] = true;
-    lastBeepTime = millis();
+    lastBeepTime[doseIndex] = millis();
+
+    // Serial.println("Attaching servo...");
+    myServo.attach(9);
+    myServo.write(100); // ปลดล็อค
+    delay(200);
+    // Serial.println("Servo unlocked");
   }
 
-  // ถ้ายังไม่เปิดกล่องและยังแจ้งเตือนไม่ครบ 5 ครั้ง
-  if (!doseTaken[doseIndex] && beepCount[doseIndex] < 20)
+  if (isAlerting[doseIndex] && !doseTaken[doseIndex] && !finishedAlert[doseIndex])
   {
-    if (millis() - lastBeepTime >= 1000) // ทุก 1 วินาที
+    if (millis() - lastBeepTime[doseIndex] >= 1000 && beepCount[doseIndex] < 10)
     {
+      // Serial.print("Beeping... Count: ");
+      // Serial.println(beepCount[doseIndex]);
+
       tone(buzzerPin, 1000, 500);
+      digitalWrite(relayPin, LOW);
+      delay(100);
+      digitalWrite(relayPin, HIGH);
+      digitalWrite(LEDPin, HIGH);
+      delay(100);
+      digitalWrite(LEDPin, LOW);
+
       beepCount[doseIndex]++;
-      lastBeepTime = millis();
-      digitalWrite(relayPin, LOW); // เปิดรีเลย์
-      digitalWrite(LEDPin, HIGH); // เปิดไฟ
-      delay(250);
-      digitalWrite(LEDPin, LOW); // ปิดไฟ
-      digitalWrite(relayPin, HIGH); // ปิดรีเลย์
+      lastBeepTime[doseIndex] = millis();
+    }
+
+    if (beepCount[doseIndex] >= 10)
+    {
+      // Serial.println("Finished alerting");
+      finishedAlert[doseIndex] = true;
+      noTone(buzzerPin);
     }
   }
 
-  // ตรวจจับการเปิดกล่อง
-  if (measureDistance() > 15.0 && !doseTaken[doseIndex])
+  if (distance > 20.0 && alertedDose[doseIndex] && !doseTaken[doseIndex])
   {
+    // Serial.println("Stage 3: Pill taken");
+
     doseTaken[doseIndex] = true;
-    // Serial.print("Dose ");
-    // Serial.print(doseIndex + 1);
-    // Serial.println(" taken by box opening");
-    delay(3000);
-    myServo.attach(9);
-    myServo.write(180); // ล้อคกล่อง
+    boxOpened = true;
+
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("Pill Taken!");
+
+    digitalWrite(LEDPin, HIGH);
+    delay(1000);
+    digitalWrite(LEDPin, LOW);
+
+    // Serial.println("Locking box...");
+    myServo.write(180); // ล็อกกล่อง
     delay(1000);
     myServo.detach();
+    // Serial.println("Box locked and servo detached");
 
-    // เสียงเตือนเมื่อเปิดกล่อง
     tone(buzzerPin, 2000, 200);
     delay(250);
     tone(buzzerPin, 1500, 200);
     delay(250);
     noTone(buzzerPin);
-    digitalWrite(LEDPin, HIGH); // เปิดไฟ
 
     lcd.clear();
-    lcd.setCursor(0, 0);
-    lcd.print("Pill Taken!");
-    delay(2000);
-    digitalWrite(LEDPin, LOW); // เปิดไฟ
-
-    lcd.clear();
-  }
-
-  // หยุดแจ้งเตือนถ้าครบ 5 ครั้งแล้ว
-  if (beepCount[doseIndex] >= 5)
-  {
-    noTone(buzzerPin);
+    // Serial.println("Alert complete\n");
   }
 }
 
@@ -433,13 +453,41 @@ bool shouldAlertToday(DateTime now)
 // ========== MEASURE DISTANCE ==========
 float measureDistance()
 {
-  digitalWrite(trigPin, LOW);
-  delayMicroseconds(2);
-  digitalWrite(trigPin, HIGH);
-  delayMicroseconds(10);
-  digitalWrite(trigPin, LOW);
+  long duration;
+  float distance;
+  float total = 0;
 
-  long duration = pulseIn(echoPin, HIGH);
-  float distance = (duration * 0.0343) / 2;
-  return distance;
+  for (int i = 0; i < 5; i++)
+  {
+    digitalWrite(trigPin, LOW);
+    delayMicroseconds(2);
+    digitalWrite(trigPin, HIGH);
+    delayMicroseconds(10);
+    digitalWrite(trigPin, LOW);
+
+    duration = pulseIn(echoPin, HIGH, 20000); // Timeout 20ms (== max ~340cm)
+    distance = duration * 0.034 / 2;
+
+    if (distance > 0 && distance < 100)
+    { // กรองค่าผิด
+      total += distance;
+    }
+    else
+    {
+      total += 10; // ค่า fallback
+    }
+
+    delay(50); // รอให้เซนเซอร์นิ่ง
+  }
+
+  return total / 5.0;
 }
+
+/*
+int freeRam()
+{
+  extern int __heap_start, *__brkval;
+  int v;
+  return (int)&v - (__brkval == 0 ? (int)&__heap_start : (int)__brkval);
+}
+*/
