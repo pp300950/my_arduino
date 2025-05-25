@@ -12,6 +12,8 @@ bool doseTaken[MAX_DOSES];
 DateTime pillTimes[MAX_DOSES];
 bool isPillTimeSet = false; // เพิ่มตัวแปรตรวจสอบว่าได้ตั้งเวลาเตือนแล้วหรือยัง
 bool alertedDose[MAX_DOSES] = {false};
+// อยู่นอกฟังก์ชันทั้งหมด
+bool finishedAlert[MAX_DOSES] = {false}; // เดิมอยู่เป็น static ใน alertUser()
 
 // servo
 Servo myServo;
@@ -97,7 +99,29 @@ void loop()
   {
     checkReminder();
   }
-  
+  DateTime now = rtc.now();
+
+  // ตรวจสอบว่าเป็นวันใหม่หรือไม่
+  static int lastCheckedDay = -1;
+
+  if (now.day() != lastCheckedDay)
+  {
+    // วันเปลี่ยนแล้ว
+    isPillTimeSet = false;      // รีเซต
+    lastCheckedDay = now.day(); // อัปเดตวันล่าสุด
+
+    for (int i = 0; i < MAX_DOSES; i++)
+    {
+      doseTaken[i] = false;
+      finishedAlert[i] = false;
+      alertedDose[i] = false;
+    }
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("New day started");
+    lcd.setCursor(0, 1);
+    lcd.print("Set pill time");
+  }
 }
 
 // ========== MENU SETTING ==========
@@ -164,18 +188,14 @@ void manualSetPillTimes()
           }
         }
       }
-      // isPillTimeSet = true;    ********  ลองย้ายลงไปข้างล่าง   **********
       menuIndex = 3; // เด้งไปหน้า Waiting
       delay(200);
     }
-
-    isPillTimeSet = true; // *********  อยุ่นี่จ้ราาา  **********
     pillTimes[i] = DateTime(now.year(), now.month(), now.day(), hour, minute, 0);
     doseTaken[i] = false;
   }
 
-  // ยังไม่เปิดใช้งาน reminder จนกว่าจะยืนยันในเมนู
-  isPillTimeSet = false;
+  isPillTimeSet = true;
 }
 
 void handleMenu()
@@ -304,8 +324,6 @@ void handleMenu()
 
   delay(200); // ป้องกันการกระพริบจอเร็วเกินไป
 }
-// อยู่นอกฟังก์ชันทั้งหมด
-bool finishedAlert[MAX_DOSES] = {false}; // เดิมอยู่เป็น static ใน alertUser()
 
 // ========== REMINDER LOGIC ==========
 void checkReminder()
@@ -395,7 +413,7 @@ void alertUser(int doseIndex)
     myServo.write(180); // ล็อกกล่อง
     delay(500);
     myServo.detach();
-  
+
     lcd.clear();
   }
 }
